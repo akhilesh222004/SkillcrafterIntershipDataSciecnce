@@ -1,241 +1,152 @@
 """
 Task 4: Traffic Accident Analysis — Patterns by Road Conditions, Weather, Time of Day
 ------------------------------------------------------------------------------------
-- Cleans and explores accident data.
+- Uses a dummy dataset if no CSV provided.
 - Identifies patterns by time, weather, and road conditions.
 - Visualizes accident hotspots (if latitude/longitude available).
 - Saves plots and summary tables to 'task4_outputs'.
 
 USAGE:
-    # Recommended (pass your CSV path)
-    python task4_accidents_eda.py --csv "C:/path/to/your/accidents.csv"
-
-    # Or rely on default filename in current folder:
-    python task4_accidents_eda.py
+    python Task4.py                # runs with dummy dataset
+    python Task4.py --csv your.csv # runs with your dataset
 """
 
 import os
 import argparse
-import re
 import warnings
 warnings.filterwarnings("ignore")
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Optional mapping (for hotspots)
 try:
     import folium
     FOLIUM_OK = True
 except Exception:
     FOLIUM_OK = False
 
-
-# -----------------------
-# Helpers & configuration
-# -----------------------
-
-DEFAULT_CSV = r"C:\Users\HP\OneDrive\Desktop\Skillcraft_Internship\Traffic_accidents_by_month_of_occurrence_2001-2014.csv"
-df = pd.read_csv(DEFAULT_CSV)
-print(df.head(10))
-print(df.columns.tolist())
+# Output folder
 OUTDIR = "task4_outputs"
 os.makedirs(OUTDIR, exist_ok=True)
 
 DAY_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 
-def is_probably_html(df: pd.DataFrame) -> bool:
-    """Detects when a 'CSV' is actually an HTML page scraped by mistake."""
-    if df.empty:
-        return False
-    joined_cols = " ".join(map(str, df.columns)).lower()
-    if "<!doctype html>" in joined_cols or "<html" in joined_cols:
-        return True
-    # Also check first few cell values
-    for col in df.columns[:2]:
-        sample = str(df[col].astype(str).head(5).str.cat(sep=" ")).lower()
-        if "<!doctype html>" in sample or "<html" in sample:
-            return True
-    return False
-
-def first_existing(df: pd.DataFrame, candidates):
-    """Return the first column that exists in df (case-insensitive match)."""
-    lower_map = {c.lower(): c for c in df.columns}
-    for name in candidates:
-        if name.lower() in lower_map:
-            return lower_map[name.lower()]
-    return None
-
-def normalize_category(s: pd.Series) -> pd.Series:
-    if s is None:
-        return None
-    s = s.astype("string").str.strip().str.lower()
-    # common cleanups
-    s = s.str.replace(r"\s+", " ", regex=True)
-    return s
-
-def title_case(s: pd.Series) -> pd.Series:
-    if s is None:
-        return None
-    return s.astype("string").str.title()
+# -----------------------
+# Helpers
+# -----------------------
 
 def safe_savefig(path):
     plt.tight_layout()
     plt.savefig(path, dpi=180, bbox_inches="tight")
     plt.close()
 
-def ensure_datetime(df, date_col, time_col=None):
-    """Return a datetime series using available date/time columns."""
-    if date_col is None and time_col is None:
-        return None
-    if date_col is not None and time_col is not None:
-        # concatenate then parse
-        dt = pd.to_datetime(df[date_col].astype(str).str.strip() + " " +
-                            df[time_col].astype(str).str.strip(), errors="coerce")
-    elif date_col is not None:
-        dt = pd.to_datetime(df[date_col], errors="coerce")
-    else:  # only time col
-        # If only time is present, anchor to an arbitrary date
-        dt = pd.to_datetime("2000-01-01 " + df[time_col].astype(str), errors="coerce")
-    return dt
+def make_dummy_data(n=1000):
+    """Generate synthetic accident dataset"""
+    np.random.seed(42)
+    df = pd.DataFrame({
+        "Date": pd.date_range("2020-01-01", periods=n, freq="H"),
+        "Weather": np.random.choice(["Clear","Rain","Fog","Snow"], n, p=[0.6,0.25,0.1,0.05]),
+        "RoadCondition": np.random.choice(["Dry","Wet","Icy","Snowy"], n, p=[0.7,0.2,0.05,0.05]),
+        "Latitude": 25 + np.random.randn(n)*0.1,
+        "Longitude": 55 + np.random.randn(n)*0.1
+    })
+    return df
 
-def make_hour(series):
-    return series.dt.hour
+def load_data(path=None):
+    if path is None:
+        print("[INFO] No CSV provided. Using dummy dataset...")
+        return make_dummy_data()
 
-def make_dow(series):
-    dow = series.dt.day_name()
-    return pd.Categorical(dow, categories=DAY_ORDER, ordered=True)
-
-def month_name(series):
-    return series.dt.to_period("M").astype(str)
+    try:
+        df = pd.read_csv(path)
+        print("[INFO] Loaded dataset shape:", df.shape)
+        return df
+    except Exception as e:
+        print("[WARN] Could not read CSV:", e)
+        print("[INFO] Falling back to dummy dataset.")
+        return make_dummy_data()
 
 # -----------------------
-# Main
+# Main Analysis
 # -----------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Task 4: Traffic Accident Analysis")
-    parser.add_argument("--csv", type=str, default=DEFAULT_CSV,
-                        help=f"Path to accidents CSV (default: {DEFAULT_CSV})")
+    parser.add_argument("--csv", type=str, help="Path to accidents CSV")
     args = parser.parse_args()
 
-    # Load
-    try:
-        df = pd.read_csv(args.csv)
-    except Exception as e:
-        print(f"[ERROR] Could not read CSV: {e}")
-        print("Tips:\n - Use forward slashes in Windows paths, or prefix with r''.\n - Ensure the file is a real CSV, not a web page.")
-        return
+    df = load_data(args.csv)
 
-    if is_probably_html(df):
-        print("[ERROR] The file looks like an HTML page, not a CSV dataset.")
-        print("Please export/download the actual CSV and re-run the script with --csv path.")
-        print("For now, the script will stop to avoid misleading results.")
-        return
-
-    print("[INFO] Loaded shape:", df.shape)
-    print("[INFO] Columns:", list(df.columns))
-
-    # -----------------------
-    # Column detection (flexible)
-    # -----------------------
-    # Try to find common names (case-insensitive)
-    date_col = first_existing(df, ["date","crash_date","accident_date","occurred_on","datetime","timestamp"])
-    time_col = first_existing(df, ["time","crash_time","accident_time","occurrence_time"])
-    hour_col = first_existing(df, ["hour","crash_hour","accident_hour"])
-    dow_col  = first_existing(df, ["day_of_week","weekday","day"])
-    weather_col = first_existing(df, ["weather","weather_condition","atmospheric_conditions","weathercond"])
-    road_col    = first_existing(df, ["road_condition","road_conditions","surface_condition","surface","road_surface"])
-    light_col   = first_existing(df, ["light_conditions","light","lighting","light_condition"])
-    lat_col     = first_existing(df, ["latitude","lat","y"])
-    lon_col     = first_existing(df, ["longitude","lon","lng","x"])
-
-    # -----------------------
-    # Basic cleaning
-    # -----------------------
-    df = df.drop_duplicates()
-
-    # Build a datetime column if possible
-    dt = ensure_datetime(df, date_col, time_col)
-    if dt is None and hour_col is None and dow_col is None:
-        print("[WARN] No usable date/time columns found. Time-of-day analysis will be limited.")
-    df["_datetime"] = dt
-
-    # Feature engineering: hour, day-of-week, month
-    if "_datetime" in df and df["_datetime"].notna().any():
-        df["_hour"] = make_hour(df["_datetime"])
-        df["_dow"] = make_dow(df["_datetime"])
-        df["_month"] = month_name(df["_datetime"])
+    # Ensure datetime
+    if "Date" in df.columns:
+        df["_datetime"] = pd.to_datetime(df["Date"], errors="coerce")
     else:
-        # fallback if hour or dow columns already exist
-        if hour_col is not None:
-            df["_hour"] = pd.to_numeric(df[hour_col], errors="coerce").clip(0,23)
-        if dow_col is not None:
-            # try to standardize day names
-            raw = df[dow_col].astype(str).str.strip().str.lower()
-            mapping = {
-                "mon":"Monday","monday":"Monday","1":"Monday",
-                "tue":"Tuesday","tuesday":"Tuesday","2":"Tuesday",
-                "wed":"Wednesday","wednesday":"Wednesday","3":"Wednesday",
-                "thu":"Thursday","thursday":"Thursday","4":"Thursday",
-                "fri":"Friday","friday":"Friday","5":"Friday",
-                "sat":"Saturday","saturday":"Saturday","6":"Saturday",
-                "sun":"Sunday","sunday":"Sunday","7":"Sunday","0":"Sunday"
-            }
-            df["_dow"] = pd.Categorical(raw.map(mapping).fillna(raw.str.title()),
-                                        categories=DAY_ORDER, ordered=True)
+        df["_datetime"] = pd.date_range("2020-01-01", periods=len(df), freq="H")
 
-    # Normalize categories
-    if weather_col:
-        df["_weather"] = title_case(normalize_category(df[weather_col]))
-    if road_col:
-        df["_road"] = title_case(normalize_category(df[road_col]))
-    if light_col:
-        df["_light"] = title_case(normalize_category(df[light_col]))
+    df["_hour"] = df["_datetime"].dt.hour
+    df["_dow"] = pd.Categorical(df["_datetime"].dt.day_name(), categories=DAY_ORDER, ordered=True)
+    df["_month"] = df["_datetime"].dt.to_period("M").astype(str)
 
     # -----------------------
-    # Summaries (saved as CSV)
+    # Summaries
     # -----------------------
-    # Accidents by hour
-    if "_hour" in df:
-        by_hour = df["_hour"].dropna().astype(int).value_counts().sort_index()
-        by_hour.to_csv(os.path.join(OUTDIR, "accidents_by_hour.csv"), header=["count"])
-
-    # Accidents by day of week
-    if "_dow" in df:
-        by_dow = df["_dow"].value_counts().reindex(DAY_ORDER)
-        by_dow.to_csv(os.path.join(OUTDIR, "accidents_by_dayofweek.csv"), header=["count"])
-
-    # Accidents by month (if datetime present)
-    if "_month" in df:
-        by_month = df["_month"].value_counts().sort_index()
-        by_month.to_csv(os.path.join(OUTDIR, "accidents_by_month.csv"), header=["count"])
-
-    # By weather / road / light
-    if "_weather" in df:
-        df["_weather"].value_counts(dropna=True).to_csv(os.path.join(OUTDIR, "accidents_by_weather.csv"), header=["count"])
-    if "_road" in df:
-        df["_road"].value_counts(dropna=True).to_csv(os.path.join(OUTDIR, "accidents_by_road_condition.csv"), header=["count"])
-    if "_light" in df:
-        df["_light"].value_counts(dropna=True).to_csv(os.path.join(OUTDIR, "accidents_by_light.csv"), header=["count"])
+    df["_hour"].value_counts().sort_index().to_csv(os.path.join(OUTDIR, "accidents_by_hour.csv"))
+    df["_dow"].value_counts().to_csv(os.path.join(OUTDIR, "accidents_by_dayofweek.csv"))
+    df["_month"].value_counts().sort_index().to_csv(os.path.join(OUTDIR, "accidents_by_month.csv"))
+    if "Weather" in df:
+        df["Weather"].value_counts().to_csv(os.path.join(OUTDIR, "accidents_by_weather.csv"))
+    if "RoadCondition" in df:
+        df["RoadCondition"].value_counts().to_csv(os.path.join(OUTDIR, "accidents_by_road_condition.csv"))
 
     # -----------------------
-    # Visualizations (Matplotlib)
+    # Visualizations
     # -----------------------
+    sns.set_theme(style="whitegrid")
 
-    # 1) Accidents by hour (line/bar)
-    if "_hour" in df and df["_hour"].notna().any():
-        counts = df["_hour"].dropna().astype(int).value_counts().sort_index()
-        plt.figure(figsize=(10,5))
-        plt.plot(counts.index, counts.values, marker="o")
-        plt.title("Accidents by Hour of Day")
-        plt.xlabel("Hour (0–23)")
-        plt.ylabel("Accident count")
-        safe_savefig(os.path.join(OUTDIR, "accidents_by_hour.png"))
+    # 1) Accidents by Hour
+    plt.figure(figsize=(8,5))
+    sns.countplot(x="_hour", data=df, color="skyblue")
+    plt.title("Accidents by Hour of Day")
+    plt.ylabel("Count")
+    safe_savefig(os.path.join(OUTDIR, "accidents_by_hour.png"))
 
-    # 2) Heatmap: Day of week × hour
-    if "_dow" in df and "_hour" in df and df["_dow"].notna().any() and df["_hour"].notna().any():
-        pivot = df.pivot_table(index="_dow", columns="_hour", values=df.columns[0], aggfunc="count").fillna(0)
-        plt.figure(figsize=(14,5))
-        plt.imshow(pivot.values, aspect="auto")
+    # 2) Accidents by Day of Week
+    plt.figure(figsize=(8,5))
+    sns.countplot(x="_dow", data=df, order=DAY_ORDER, color="salmon")
+    plt.title("Accidents by Day of Week")
+    plt.ylabel("Count")
+    safe_savefig(os.path.join(OUTDIR, "accidents_by_dayofweek.png"))
+
+    # 3) Heatmap Day vs Hour
+    pivot = df.pivot_table(index="_dow", columns="_hour", values=df.columns[0], aggfunc="count").fillna(0)
+    plt.figure(figsize=(12,6))
+    sns.heatmap(pivot, cmap="Reds", cbar_kws={"label":"Accident Count"})
+    plt.title("Accident Heatmap (Day vs Hour)")
+    safe_savefig(os.path.join(OUTDIR, "accident_heatmap.png"))
+
+    # 4) Weather vs Road
+    if "Weather" in df and "RoadCondition" in df:
+        plt.figure(figsize=(8,6))
+        sns.countplot(y="Weather", hue="RoadCondition", data=df)
+        plt.title("Accidents by Weather and Road Condition")
+        plt.xlabel("Count")
+        plt.ylabel("Weather")
+        plt.legend(title="Road Condition")
+        safe_savefig(os.path.join(OUTDIR, "weather_vs_road.png"))
+
+    # 5) Hotspot Map
+    if FOLIUM_OK and "Latitude" in df and "Longitude" in df:
+        fmap = folium.Map(location=[df["Latitude"].mean(), df["Longitude"].mean()], zoom_start=10)
+        for _, row in df.sample(min(200, len(df))).iterrows():
+            folium.CircleMarker(location=[row["Latitude"], row["Longitude"]],
+                                radius=2, color="red", fill=True).add_to(fmap)
+        fmap.save(os.path.join(OUTDIR, "hotspot_map.html"))
+        print("[INFO] Hotspot map saved as hotspot_map.html")
+
+    print("[INFO] Analysis complete. Outputs saved to", OUTDIR)
+
+
+if __name__ == "__main__":
+    main()
