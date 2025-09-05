@@ -1,0 +1,172 @@
+index,<!DOCTYPE html>
+0,<html>
+1,<head>
+2,    <title>Accidents in India | Kaggle</title>
+3,"    <meta charset=""utf-8"" />"
+4,"    <link rel=""dns-prefetch"" href=""https://www.google-analytics.com"" /><link rel=""dns-prefetch"" href=""https://stats.g.doubleclick.net"" /><link rel=""dns-prefetch"" href=""https://js.intercomcdn.com"" /><link rel=""preload"" href=""https://az416426.vo.msecnd.net/scripts/a/ai.0.js"" as=script /><link rel=""preload"" href=""https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"" as=script /><link rel=""dns-prefetch"" href=""https://kaggle2.blob.core.windows.net"" />"
+5,"    <link href=""/content/v/d420a040e581/kaggle/favicon.ico"" rel=""shortcut icon"" type=""image/x-icon"" />"
+6,"    <link rel=""manifest"" href=""/static/json/manifest.json"">"
+7,"            <link rel=""stylesheet"" type=""text/css"" href=""/static/assets/vendor.css?v=8f134ba4d610""/>"
+8,"        <link rel=""stylesheet"" type=""text/css"" href=""/static/assets/app.css?v=6ad8d9854ae4""/>"
+9,        <script>
+10,            (function () {
+11,                var originalError = window.onerror;
+12,"                    var blockedByCors = message && message.toLowerCase().indexOf(""script error"") >= 0;"
+13,                    return handled || blockedByCors;
+14,                };
+15,            })();
+16,        </script>
+17,    <script>
+18,        var appInsights=window.appInsights||function(config){
+19,        }({
+20,            disableAjaxTracking: true
+21,        });
+22,        window.appInsights=appInsights;
+23,        appInsights.trackPageView();
+24,    </script>
+25,    <script>
+26,    window.ga = window.ga || function () { (ga.q = ga.q || []).push(arguments) }; ga.l = +new Date;
+27,    </script>
+28,"    <script async src=""https://www.google-analytics.com/analytics.js""></script>"
+29,    <script>
+30,          window.intercomSettings = {
+31,"            app_id: ""koj6gxx6"""
+32,          };
+33,    </script>
+34,"    <meta name=""twitter:card"" content=""summary"" />"
+35,"    <meta name=""twitter:site"" content=""@kaggledatasets""/>"
+36,"    <meta name=""twitter:creator"" content=""@iRajanand"" />"
+37,"    <meta name=""og:url"" content=""https://www.kaggle.com/rajanand/accidents-in-india"" />"
+38,"    <meta name=""og:title"" content=""Accidents in India"" />"
+39,"    <meta name=""og:description"" content=""Traffic accidents in each states/u.t of India from 2001 to 2014"" />"
+40,"    <meta name=""og:image"" content=""https://kaggle2.blob.core.windows.net/datasets-images/1687/2954/bf576e3b91d4b48ac757638d68738713/dataset-card.jpg"" />"
+41,"    <script src=""/static/assets/manifest.js?v=3692d22d26e7""></script>"
+42,"<script src=""/static/assets/vendor.js?v=e83dddd0c744""></script>"
+43,</head>
+44,<body>
+45,"<div class=""site-layout"">"
+46,"        <div class=""site-layout__header"">"
+47,"            <div data-component-name=""SiteHeaderContainer""></div><script>var Kaggle=window.Kaggle||{};Kaggle.State=Kaggle.State||[];Kaggle.State.push({});performance && performance.mark && performance.mark(""SiteHeaderContainer.componentCouldBootstrap"");</script>"
+48,        </div>
+49,"    <div class=""site-layout__main-content"">"
+50,"<script type=""text/x-mathjax-config"">"
+51,    MathJax.Hub.Config({
+52,"        ""HTML-CSS"": {"
+53,            linebreaks: {
+54,                automatic: true
+55,            EqnChunk: (MathJax.Hub.Browser.isMobile ? 10 : 50)
+56,        tex2jax: {
+57,"            ignoreClass: ""tex2jax_ignore|dno"""
+58,        TeX: {
+59,            noUndefined: {
+60,                attributes: {
+61,"                    mathsize: ""90%"""
+62,                }
+63,            }
+64,        Macros: {
+65,"            href: ""{}"""
+66,"        messageStyle: ""none"""
+67,    });
+68,</script>
+69,"<script type=""text/javascript"" async crossorigin=""anonymous"" src=""https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML""></script>"
+70,    </div>
+71,"        <div class=""site-layout__footer"">"
+72,"            <footer class=""site-footer"">"
+73,"    <div class=""site-footer__content"">"
+74,"        <div class=""site-footer__copyright"">"
+75,            <span>&copy; 2017 Kaggle Inc</span>
+76,        </div>
+77,"        <nav class=""site-footer__nav"">"
+78,"            <a href=""/team"">Our Team</a>"
+79,"            <a href=""/terms"">Terms</a>"
+80,"            <a href=""/privacy"">Privacy</a>"
+81,"            <a href=""/contact"">Contact/Support</a>"
+82,        </nav>
+83,"        <nav class=""site-footer__social"">"
+84,"            <a class=""site-footer__social--twitter"" href=""http://www.twitter.com/kaggle"" title=""Follow Kaggle on Twitter"">"
+85,"                <i class=""fa fa-twitter-square""></i>"
+86,            </a>
+87,"            <a class=""site-footer__social--facebook"" href=""http://www.facebook.com/kaggle"" title=""Follow Kaggle on Facebook"">"
+88,"                <i class=""fa fa-facebook-square""></i>"
+89,            </a>
+90,"            <a class=""site-footer__social--linkedin"" href=""http://www.linkedin.com/companies/kaggle"" title=""Follow Kaggle on LinkedIn"">"
+91,"                <i class=""fa fa-linkedin-square""></i>"
+92,            </a>
+93,        </nav>
+94,    </div>
+95,</footer>
+96,        </div>
+97,</div>
+98,"<script type=""text/javascript"">"
+99,    var Kaggle = Kaggle || {};
+100,    Kaggle.Current = {
+101,    }
+102,        Kaggle.Current.log = function(){};
+103,        Kaggle.Current.warn = function(){};
+104,</script>
+105,"<script type=""text/javascript"">"
+106,    var Kaggle = Kaggle || {};
+107,</script>
+108,"<script src=""/content/v/5dbea6ee9ce1/shared/js/kaggle.prism.min.js""></script>"
+109,"<script type=""text/javascript"">"
+110,/* <![CDATA[ */
+111,goog_snippet_vars = function() {
+112,    var w = window;
+113,    w.google_conversion_id = 955616553;
+114,"    w.google_conversion_label = ""-SL0CM3tqXMQqZrWxwM"";"
+115,    w.google_conversion_value = 0.00;
+116,"    w.google_conversion_currency = ""USD"";"
+117,    w.google_remarketing_only = false;
+118,"    w.google_conversion_language = ""en"";"
+119,"    w.google_conversion_format = ""3"";"
+120,"    w.google_conversion_color = ""ffffff"";"
+121,}
+122,// DO NOT CHANGE THE CODE BELOW.
+123,goog_report_conversion = function(url) {
+124,    goog_snippet_vars();
+125,"    window.google_conversion_format = ""3"";"
+126,    var opt = new Object();
+127,    opt.onload_callback = function() {
+128,        if (typeof(url) != 'undefined') {
+129,            window.location = url;
+130,        }
+131,    }
+132,    var conv_handler = window['google_trackConversion'];
+133,    if (typeof(conv_handler) == 'function') {
+134,        conv_handler(opt);
+135,    }
+136,}
+137,/* ]]> */
+138,</script>
+139,"<script type=""text/javascript"""
+140,"src=""//www.googleadservices.com/pagead/conversion_async.js"">"
+141,</script>
+142,"    <script src=""/static/assets/app.js?v=0984ff27e006""></script>"
+143,        <script>
+144,            (function() {
+145,                if ('serviceWorker' in navigator) {
+146,"                    navigator.serviceWorker.register(""/static/assets/service-worker.js"").then(function(reg) {"
+147,                        reg.onupdatefound = function() {
+148,                            var installingWorker = reg.installing;
+149,                            installingWorker.onstatechange = function() {
+150,                                switch (installingWorker.state) {
+151,                                case 'installed':
+152,                                    if (navigator.serviceWorker.controller) {
+153,                                        console.log('New or updated content is available.');
+154,                                    } else {
+155,                                        console.log('Content is now available offline!');
+156,                                    }
+157,                                    break;
+158,                                case 'redundant':
+159,                                    console.error('The installing service worker became redundant.');
+160,                                    break;
+161,                                }
+162,                            };
+163,                        };
+164,                    }).catch(function(e) {
+165,                    });
+166,                }
+167,            })();
+168,        </script>
+169,</body>
+170,</html>
